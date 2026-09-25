@@ -39,6 +39,12 @@ app.get('/', (req, res) => {
 
 // Auth routes
 app.use('/api/auth', require('./routes/authRoutes'));
+// Company routes
+app.use('/api/companies', require('./routes/companyRoutes'));
+// Category routes
+app.use('/api/categories', require('./routes/categoryRoutes'));
+// Size routes
+app.use('/api/sizes', require('./routes/sizeRoutes'));
 
 // ============================================
 // 404 HANDLER - Route not found
