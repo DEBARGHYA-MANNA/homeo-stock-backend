@@ -45,6 +45,18 @@ app.use('/api/companies', require('./routes/companyRoutes'));
 app.use('/api/categories', require('./routes/categoryRoutes'));
 // Size routes
 app.use('/api/sizes', require('./routes/sizeRoutes'));
+// Potency routes
+app.use('/api/potencies', require('./routes/potencyRoutes'));
+// Medicine routes
+app.use('/api/medicines', require('./routes/medicineRoutes'));
+// Product routes
+app.use('/api/products', require('./routes/productRoutes'));
+// Use Type routes
+app.use('/api/use-types', require('./routes/useTypeRoutes'));
+// Dashboard routes
+app.use('/api/dashboard', require('./routes/dashboardRoutes'));
+// Sale routes
+app.use('/api/sales', require('./routes/saleRoutes'));
 
 // ============================================
 // 404 HANDLER - Route not found
