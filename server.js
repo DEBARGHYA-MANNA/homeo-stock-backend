@@ -15,8 +15,8 @@ const app = express();
 // CORS configuration
 const allowedOrigins = [
     "http://localhost:3000",
-    "https://homeo-stock-frontend.vercel.app",
-    "https://homeo-stock-frontend-git-develop-debarghya-mannas-projects.vercel.app"
+    "https://homeo-storage-frontend.vercel.app",
+    "https://homeo-storage-frontend-git-develop-debarghya-mannas-projects.vercel.app"
 ];
 
 app.use(cors({
