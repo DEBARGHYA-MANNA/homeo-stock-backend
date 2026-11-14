@@ -12,18 +12,29 @@ connectDB();
 // Initialize Express App
 const app = express();
 
-// ============================================
-// MIDDLEWARES
-// ============================================
+// CORS configuration
+const allowedOrigins = [
+    "http://localhost:3000",
+    "https://homeo-stock-frontend.vercel.app",
+    "https://homeo-stock-frontend-git-develop-debarghya-mannas-projects.vercel.app"
+];
 
-// Enable CORS (allows frontend to communicate with backend)
-app.use(cors());
+app.use(cors({
+    origin: (origin, callback) => {
+        if (!origin || allowedOrigins.includes(origin)) {
+            callback(null, true);
+        } else {
+            callback(new Error(`CORS blocked: ${origin}`));
+        }
+    },
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"]
+}));
 
-// Parse incoming JSON data
 app.use(express.json());
-
-// Parse URL-encoded data
 app.use(express.urlencoded({ extended: true }));
+
+// Your existing routes below...
 
 // ============================================
 // ROUTES
@@ -57,6 +68,8 @@ app.use('/api/use-types', require('./routes/useTypeRoutes'));
 app.use('/api/dashboard', require('./routes/dashboardRoutes'));
 // Sale routes
 app.use('/api/sales', require('./routes/saleRoutes'));
+// Stock routes
+app.use('/api/stock', require('./routes/stockRoutes'));
 
 // ============================================
 // 404 HANDLER - Route not found

@@ -1,29 +1,50 @@
 const mongoose = require('mongoose');
 
+// ============================================
+// BATCH SCHEMA (unchanged)
+// ============================================
+const batchSchema = new mongoose.Schema(
+    {
+        batchNumber: { type: String, trim: true, default: '' },
+        quantity: {
+            type: Number,
+            required: [true, 'Batch quantity is required'],
+            min: [0, 'Quantity cannot be negative'],
+            default: 0,
+        },
+        purchasePrice: {
+            type: Number,
+            required: [true, 'Purchase price is required'],
+            min: [0, 'Price cannot be negative'],
+        },
+        mrp: {
+            type: Number,
+            required: [true, 'MRP is required'],
+            min: [0, 'MRP cannot be negative'],
+        },
+        sellingPriceCustomer: { type: Number, default: 0, min: 0 },
+        sellingPriceDoctor: { type: Number, default: 0, min: 0 },
+        expiryDate: { type: Date, default: null },
+        rackLocation: { type: String, trim: true, default: '' },
+        addedAt: { type: Date, default: Date.now },
+    },
+    { _id: true }
+);
+
 const productSchema = new mongoose.Schema(
     {
-        // ============================================
-        // PRODUCT IDENTITY
-        // ============================================
-        // For medicine products: medicine ref is used
-        // For general products (shampoo, oil): productName is used
         productName: {
             type: String,
             trim: true,
             maxlength: [100, 'Product name cannot exceed 100 characters'],
             default: '',
-            // Example: "Anti-Dandruff Shampoo", "Hair Oil", "Skin Cream"
         },
         medicine: {
             type: mongoose.Schema.Types.ObjectId,
             ref: 'Medicine',
             default: null,
-            // Optional! Only for homeopathic medicines like Arnica, Nux Vom
         },
-
-        // ============================================
-        // REFERENCES (some now optional)
-        // ============================================
+        // ── Each variant stores ONE of each ──
         company: {
             type: mongoose.Schema.Types.ObjectId,
             ref: 'Company',
@@ -32,7 +53,7 @@ const productSchema = new mongoose.Schema(
         category: {
             type: mongoose.Schema.Types.ObjectId,
             ref: 'Category',
-            required: [true, 'Category is required'],
+            default: null,
         },
         size: {
             type: mongoose.Schema.Types.ObjectId,
@@ -43,141 +64,86 @@ const productSchema = new mongoose.Schema(
             type: mongoose.Schema.Types.ObjectId,
             ref: 'Potency',
             default: null,
-            // Optional! Not applicable for shampoo, oil, cream, etc.
         },
 
-        // ============================================
-        // USE TYPES (Many-to-Many)
-        // ============================================
-        useTypes: [
-            {
-                type: mongoose.Schema.Types.ObjectId,
-                ref: 'UseType',
-            },
-        ],
-        // Example: [Cold, Cough, Fever] for a medicine
-        // Example: [Hair Care, Dandruff] for a shampoo
-
-        // ============================================
-        // PRICING
-        // ============================================
-        mrp: {
-            type: Number,
-            required: [true, 'MRP is required'],
-            min: [0, 'MRP cannot be negative'],
-        },
-        purchasePrice: {
-            type: Number,
-            required: [true, 'Purchase price is required'],
-            min: [0, 'Purchase price cannot be negative'],
-        },
-        discount: {
-            type: Number,
-            default: 0,
-            min: [0, 'Discount cannot be negative'],
-            max: [100, 'Discount cannot exceed 100%'],
-        },
-
-        // ============================================
-        // STOCK / INVENTORY
-        // ============================================
-        stock: {
-            type: Number,
-            required: [true, 'Stock quantity is required'],
-            min: [0, 'Stock cannot be negative'],
-            default: 0,
-        },
-        lowStockThreshold: {
-            type: Number,
-            default: 10,
-        },
-
-        // ============================================
-        // BATCH & EXPIRY
-        // ============================================
-        batchNumber: {
-            type: String,
-            trim: true,
-            default: '',
-        },
-        expiryDate: {
-            type: Date,
+        // ★ CHANGED: was useTypes (array) → now useType (single)
+        useType: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: 'UseType',
             default: null,
         },
 
-        // ============================================
-        // STORAGE & TAX
-        // ============================================
-        rackLocation: {
-            type: String,
-            trim: true,
-            default: '',
-        },
-        hsnCode: {
-            type: String,
-            trim: true,
-            default: '3004',
-        },
+        // Batches
+        batches: [batchSchema],
 
-        // ============================================
-        // STATUS
-        // ============================================
-        isActive: {
-            type: Boolean,
-            default: true,
-        },
+        // Aggregate stock
+        stock: { type: Number, default: 0, min: 0 },
+        lowStockThreshold: { type: Number, default: 10 },
+
+        // Default pricing (from latest batch)
+        mrp: { type: Number, default: 0, min: 0 },
+        purchasePrice: { type: Number, default: 0, min: 0 },
+        sellingPriceCustomer: { type: Number, default: 0, min: 0 },
+        sellingPriceDoctor: { type: Number, default: 0, min: 0 },
+        discount: { type: Number, default: 0, min: 0, max: 100 },
+
+        // Storage & Tax
+        rackLocation: { type: String, trim: true, default: '' },
+        hsnCode: { type: String, trim: true, default: '3004' },
+
+        isActive: { type: Boolean, default: true },
     },
-    {
-        timestamps: true,
-    }
+    { timestamps: true }
 );
 
-// ============================================
-// VIRTUAL: Display name
-// If medicine exists → use medicine name
-// If not → use productName
-// ============================================
-productSchema.virtual('displayName').get(function () {
-    if (this.medicine && this.medicine.name) {
-        return this.medicine.name;
+// Recalculate stock from batches
+productSchema.methods.recalculateStock = function () {
+    this.stock = this.batches.reduce((sum, batch) => sum + batch.quantity, 0);
+    if (this.batches.length > 0) {
+        const latestBatch = this.batches[this.batches.length - 1];
+        this.mrp = latestBatch.mrp;
+        this.purchasePrice = latestBatch.purchasePrice;
+        this.sellingPriceCustomer = latestBatch.sellingPriceCustomer || latestBatch.mrp;
+        this.sellingPriceDoctor = latestBatch.sellingPriceDoctor || latestBatch.mrp;
+        this.rackLocation = latestBatch.rackLocation || this.rackLocation;
     }
+};
+
+// Virtuals
+productSchema.virtual('displayName').get(function () {
+    if (this.medicine && this.medicine.name) return this.medicine.name;
     return this.productName || 'Unnamed Product';
 });
 
-// ============================================
-// VIRTUAL: Check if stock is low
-// ============================================
 productSchema.virtual('isLowStock').get(function () {
     return this.stock <= this.lowStockThreshold;
 });
 
-// ============================================
-// VIRTUAL: Check if expired
-// ============================================
 productSchema.virtual('isExpired').get(function () {
-    if (!this.expiryDate) return false;
-    return new Date(this.expiryDate) < new Date();
+    if (this.batches.length === 0) return false;
+    return this.batches.some(
+        (b) => b.expiryDate && new Date(b.expiryDate) < new Date() && b.quantity > 0
+    );
 });
 
-// ============================================
-// VIRTUAL: Profit margin per unit
-// ============================================
+productSchema.virtual('nearestExpiry').get(function () {
+    const activeBatches = this.batches.filter((b) => b.quantity > 0 && b.expiryDate);
+    if (activeBatches.length === 0) return null;
+    activeBatches.sort((a, b) => new Date(a.expiryDate) - new Date(b.expiryDate));
+    return activeBatches[0].expiryDate;
+});
+
 productSchema.virtual('profitMargin').get(function () {
     if (this.purchasePrice === 0) return 0;
     return (((this.mrp - this.purchasePrice) / this.purchasePrice) * 100).toFixed(2);
 });
 
-// ============================================
-// VIRTUAL: Product type label
-// ============================================
 productSchema.virtual('productType').get(function () {
     return this.medicine ? 'Medicine' : 'General Product';
 });
 
-// Make sure virtuals are included in JSON output
 productSchema.set('toJSON', { virtuals: true });
 productSchema.set('toObject', { virtuals: true });
 
 const Product = mongoose.model('Product', productSchema);
-
 module.exports = Product;
