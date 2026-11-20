@@ -19,32 +19,63 @@ const allowedOrigins = [
     "https://homeo-storage-frontend-git-develop-debarghya-mannas-projects.vercel.app"
 ];
 
+
+// ============================================
+// CORS CONFIGURATION
+// ============================================
+
+const allowedOrigins = [
+    "http://localhost:3000",
+    "https://homeo-storage-frontend.vercel.app",
+    "https://homeo-storage-frontend-git-develop-debarghya-mannas-projects.vercel.app"
+];
+
 const corsOptions = {
     origin: (origin, callback) => {
-        if (
-            !origin ||
-            allowedOrigins.includes(origin) ||
-            /^https:\/\/homeo-storage-frontend-[a-z0-9]+-debarghya-mannas-projects\.vercel\.app$/.test(origin)
-        ) {
-            callback(null, true);
-        } else {
-            callback(new Error("Not allowed by CORS"));
+        // Allow requests without Origin (server-to-server)
+        if (!origin) {
+            return callback(null, true);
         }
+
+        // Allow explicitly registered domains
+        if (allowedOrigins.includes(origin)) {
+            return callback(null, true);
+        }
+
+        // Allow Vercel preview deployments
+        const isVercelPreview =
+            /^https:\/\/homeo-storage-frontend-[a-z0-9-]+-debarghya-mannas-projects\.vercel\.app$/.test(origin);
+
+        if (isVercelPreview) {
+            return callback(null, true);
+        }
+
+        console.log("CORS blocked origin:", origin);
+
+        return callback(new Error("Not allowed by CORS"));
     },
-    credentials: true
+
+    credentials: true,
+
+    methods: [
+        "GET",
+        "POST",
+        "PUT",
+        "PATCH",
+        "DELETE",
+        "OPTIONS"
+    ],
+
+    allowedHeaders: [
+        "Content-Type",
+        "Authorization"
+    ],
+
+    optionsSuccessStatus: 204
 };
 
-app.use(cors({
-    origin: (origin, callback) => {
-        if (!origin || allowedOrigins.includes(origin)) {
-            callback(null, true);
-        } else {
-            callback(new Error(`CORS blocked: ${origin}`));
-        }
-    },
-    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization"]
-}));
+// Apply CORS globally BEFORE routes
+app.use(cors(corsOptions));
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
