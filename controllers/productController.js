@@ -58,7 +58,7 @@ const createProduct = async (req, res) => {
         const categoryList = categories && categories.length > 0 ? categories : [null];
         const sizeList = sizes;
         const potencyList = isMedicine && potencies && potencies.length > 0 ? potencies : [null];
-        const useTypeList = useTypes && useTypes.length > 0 ? useTypes : [null];
+        // const useTypeList = useTypes && useTypes.length > 0 ? useTypes : [null];
 
         // ★ Cartesian product: C × Cat × S × P × U
         const combinations = cartesian(
@@ -66,14 +66,14 @@ const createProduct = async (req, res) => {
             categoryList,
             sizeList,
             potencyList,
-            useTypeList
+            // useTypeList
         );
 
         const createdProducts = [];
         const skippedProducts = [];
         const errors = [];
 
-        for (const [companyId, categoryId, sizeId, potencyId, useTypeId] of combinations) {
+        for (const [companyId, categoryId, sizeId, potencyId] of combinations) {
             try {
                 // Duplicate check across ALL variant dimensions
                 const duplicateFilter = {
@@ -82,7 +82,7 @@ const createProduct = async (req, res) => {
                     size: sizeId,
                     medicine: medicine || null,
                     potency: potencyId || null,
-                    useType: useTypeId || null,
+                    useType: { $all: useTypes || [], $size: (useTypes || []).length }
                 };
 
                 if (!medicine && productName) {
@@ -99,7 +99,6 @@ const createProduct = async (req, res) => {
                         category: categoryId,
                         size: sizeId,
                         potency: potencyId,
-                        useType: useTypeId,
                         reason: 'Duplicate',
                     });
                     continue;
@@ -112,7 +111,7 @@ const createProduct = async (req, res) => {
                     category: categoryId || null,
                     size: sizeId,
                     potency: potencyId || null,
-                    useType: useTypeId || null,       // ★ single value
+                    useType: Array.isArray(useTypes) ? useTypes : [],
                     lowStockThreshold: lowStockThreshold || 10,
                     hsnCode: hsnCode || '3004',
                 });
@@ -124,7 +123,6 @@ const createProduct = async (req, res) => {
                     category: categoryId,
                     size: sizeId,
                     potency: potencyId,
-                    useType: useTypeId,
                     error: err.message,
                 });
             }

@@ -66,12 +66,11 @@ const productSchema = new mongoose.Schema(
             default: null,
         },
 
-        // ★ CHANGED: was useTypes (array) → now useType (single)
-        useType: {
+        // useTypes (array) 
+        useType: [{
             type: mongoose.Schema.Types.ObjectId,
             ref: 'UseType',
-            default: null,
-        },
+        }],
 
         // Batches
         batches: [batchSchema],
